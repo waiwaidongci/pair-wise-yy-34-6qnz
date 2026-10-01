@@ -4,6 +4,13 @@ TITLE='工伤事故调查与纠正措施'; ENTITY='事故'; ID_PREFIX='OI'
 SEVERITIES=['minor', 'moderate', 'serious', 'fatal']; STATES=['reported', 'investigating', 'corrective_action', 'verification', 'closed']; TRANSITIONS={'reported': ['investigating'], 'investigating': ['corrective_action'], 'corrective_action': ['verification'], 'verification': ['closed'], 'closed': []}; TRANSITION_ROLES={'investigating': ['investigator'], 'corrective_action': ['investigator'], 'verification': ['safety_manager'], 'closed': ['safety_manager']}
 CREATE_ROLES=set(['reporter', 'investigator']); RECORD_ROLES=set(['investigator', 'safety_manager']); AUDIT_ROLES=set(['safety_manager', 'viewer']); VIEW_ROLES=set(['reporter', 'investigator', 'safety_manager', 'viewer'])
 SEVERITY_WEIGHT={'minor': 1.0, 'moderate': 3.0, 'serious': 6.0, 'fatal': 9.0}; DEADLINE_HOURS={'minor': 72, 'moderate': 24, 'serious': 8, 'fatal': 4}; TERMINAL_STATES=set(['closed'])
+# 续办（resumable follow-up）持有凭证与检查点
+CLAIM_ROLES=set(['investigator', 'safety_manager']); UPDATE_ROLES=set(['reporter', 'investigator', 'safety_manager'])
+DEFAULT_LEASE_SECONDS=1800; MIN_LEASE_SECONDS=60; MAX_LEASE_SECONDS=86400
+LEASE_ACTIVE='active'; LEASE_EXPIRED='expired'; LEASE_RELEASED='released'; LEASE_TAKEN_OVER='taken_over'
+CHECKPOINT_CLAIM='claim'; CHECKPOINT_PROGRESS='progress'; CHECKPOINT_HANDOVER='handover'
+ATTEMPT_SUCCEEDED='succeeded'; ATTEMPT_FAILED='failed'; ATTEMPT_QUARANTINED='quarantined'
+LATE_NO_LEASE='no_active_lease'; LATE_TOKEN_MISMATCH='lease_token_mismatch'; LATE_EXPIRED='lease_expired'; LATE_ITEM_CLOSED='item_closed'
 def priority_score(severity,quantity=0.0,threshold=1.0,open_records=0):
     if severity not in SEVERITY_WEIGHT: raise ValidationError("unknown severity")
     ratio=quantity/threshold if threshold>0 else 1.0

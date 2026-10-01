@@ -1,1 +1,121 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工伤事故调查与纠正措施</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#17212b}pre{background:#f4f7f9;padding:1rem;overflow:auto}button{padding:.55rem 1rem}</style></head><body><h1>工伤事故调查与纠正措施</h1><p>记录工伤经过、伤害、现场和证人，维护调查、纠正措施、验证与关闭流程</p><p>严重度越高、伤害指数越大或未关闭措施越多，优先级越高；严重事故必须在4小时内启动调查。</p><button onclick="loadItems()">刷新列表</button><pre id="out">使用X-Actor和X-Role请求头调用接口。</pre><script>async function loadItems(){const r=await fetch('/api/items',{headers:{'X-Actor':'demo','X-Role':'viewer'}});document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2)}</script></body></html>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工伤事故调查与纠正措施 · 续办</title><style>
+:root{--ink:#17212b;--mut:#5b6b7a;--line:#dfe6ec;--bg:#f4f7f9;--ok:#1a7f4b;--warn:#b25e09;--err:#b3261e;--accent:#1f6feb}
+*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:1080px;margin:0 auto;padding:1.5rem 1rem 4rem;color:var(--ink)}
+h1{font-size:1.5rem;margin:0 0 .25rem}h2{font-size:1.1rem;margin:1.25rem 0 .5rem}
+.sub{color:var(--mut);margin:0 0 1rem}.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+button{padding:.5rem .8rem;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-size:.9rem}
+button:hover{border-color:var(--accent)}button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.danger{color:var(--err)}input,select{padding:.45rem .5rem;border:1px solid var(--line);border-radius:6px;font-size:.9rem;font-family:inherit}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);font-size:.85rem;vertical-align:top}
+th{background:var(--bg);font-weight:600}tr:last-child td{border-bottom:none}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:1rem;margin-bottom:1rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
+.field label{display:block;font-size:.78rem;color:var(--mut);margin-bottom:.2rem}
+.field input,.field select,.field textarea{width:100%}.field textarea{min-height:60px;resize:vertical}
+pre{background:var(--bg);padding:.75rem;border-radius:8px;overflow:auto;font-size:.8rem;max-height:360px}
+.tag{display:inline-block;padding:.1rem .45rem;border-radius:999px;font-size:.72rem;font-weight:600}
+.tag.ok{background:#e3f2ea;color:var(--ok)}.tag.warn{background:#fdeedd;color:var(--warn)}.tag.err{background:#fbe4e2;color:var(--err)}
+.tag.mut{background:#eef1f4;color:var(--mut)}.tag.accent{background:#e7effc;color:var(--accent)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}.mut{color:var(--mut)}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.spacer{flex:1}
+#toast{position:fixed;bottom:1rem;right:1rem;background:var(--ink);color:#fff;padding:.6rem .9rem;border-radius:8px;font-size:.85rem;opacity:0;transition:opacity .2s;max-width:360px}
+#toast.show{opacity:1}
+</style></head><body>
+<h1>工伤事故调查与纠正措施 · 可恢复续办</h1>
+<p class="sub">领取时记下短期持有凭证与检查点；超时后从最近检查点交给下一人。旧持有人迟到提交只留历史，不覆盖当前续办、不重复生成措施；续办失败可重试。严重度/伤害指数改动立即重算未关闭事故的期限与优先级，已关闭事故保留封存结果。</p>
+<div class="bar">
+  <span class="mut">身份：</span><input id="actor" value="demo" style="width:120px">
+  <select id="role"><option value="viewer">viewer</option><option value="reporter">reporter</option><option value="investigator" selected>investigator</option><option value="safety_manager">safety_manager</option></select>
+  <button onclick="loadItems()">刷新列表</button>
+  <span class="spacer"></span>
+  <button class="primary" onclick="showCreate()">+ 新建事故</button>
+</div>
+<div id="createBox" class="card" style="display:none">
+  <h2>新建事故</h2>
+  <div class="grid">
+    <div class="field"><label>标题</label><input id="c_title"></div>
+    <div class="field"><label>严重度</label><select id="c_severity"><option value="minor">minor</option><option value="moderate">moderate</option><option value="serious" selected>serious</option><option value="fatal">fatal</option></select></div>
+    <div class="field"><label>伤害指数 quantity</label><input id="c_quantity" type="number" value="12"></div>
+    <div class="field"><label>阈值 threshold</label><input id="c_threshold" type="number" value="6"></div>
+    <div class="field"><label>外部编号 external_ref</label><input id="c_ref"></div>
+  </div>
+  <div class="field" style="margin-top:.5rem"><label>描述</label><textarea id="c_desc"></textarea></div>
+  <div class="bar" style="margin-top:.5rem"><button class="primary" onclick="createItem()">创建</button><button onclick="hideCreate()">取消</button></div>
+</div>
+<div id="listBox" class="card"><h2>事故列表</h2><div id="list"><p class="mut">点击“刷新列表”加载。</p></div></div>
+<div id="detail"></div>
+<div id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+function headers(){return {'Content-Type':'application/json','X-Actor':$('actor').value,'X-Role':$('role').value};}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),3500);}
+async function api(method,url,body){const r=await fetch(url,{method,headers:headers(),body:body?JSON.stringify(body):undefined});let data=null;try{data=await r.json()}catch(e){}if(!r.ok){const e=new Error((data&&data.message)||r.status);e.data=data;e.status=r.status;throw e}return data;}
+function tag(v,cls){return `<span class="tag ${cls}">${v}</span>`}
+function leaseTag(it){if(it.sealed)return tag('已封存','mut');if(!it.lease_active)return tag('无持有人','mut');return tag('持有人 '+it.holder,'ok')+' <span class="mut mono">到期 '+(it.lease_expires_at||'')+'</span>'}
+function priTag(it){if(it.priority==null)return tag('-','mut');const cls=it.priority>=7?'err':it.priority>=4?'warn':'ok';return tag('优先级 '+it.priority,cls)}
+async function loadItems(){try{const d=await api('GET','/api/items');const rows=d.items||[];if(!rows.length){$('list').innerHTML='<p class="mut">暂无事故。</p>';return}
+$('list').innerHTML=`<table><thead><tr><th>ID</th><th>标题</th><th>状态</th><th>严重度</th><th>优先级</th><th>期限(h)</th><th>持有人</th><th>版本</th><th></th></tr></thead><tbody>
+${rows.map(it=>`<tr><td class="mono">${it.id}</td><td>${it.title}</td><td>${it.status}</td><td>${it.severity}</td><td>${priTag(it)}</td><td>${it.deadline_hours==null?'-':it.deadline_hours}</td><td>${leaseTag(it)}</td><td class="mono">v${it.version}</td><td><button onclick="openDetail(${it.id})">详情</button></td></tr>`).join('')}
+</tbody></table>`;}catch(e){toast('加载失败：'+e.message)}}
+function showCreate(){$('createBox').style.display='block'}function hideCreate(){$('createBox').style.display='none'}
+async function createItem(){try{const body={title:$('c_title').value,description:$('c_desc').value,severity:$('c_severity').value,quantity:Number($('c_quantity').value),threshold:Number($('c_threshold').value),external_ref:$('c_ref').value||undefined};const it=await api('POST','/api/items',body);toast('已创建事故 #'+it.id);hideCreate();await loadItems();openDetail(it.id);}catch(e){toast('创建失败：'+e.message)}}
+async function openDetail(id){try{const [it,recs,cps,leases,late,attempts]=await Promise.all([api('GET',`/api/items/${id}`),api('GET',`/api/items/${id}/records`).then(d=>d.records).catch(()=>[]),api('GET',`/api/items/${id}/checkpoints`).then(d=>d.checkpoints).catch(()=>[]),api('GET',`/api/items/${id}/leases`).then(d=>d.leases).catch(()=>[]),api('GET',`/api/items/${id}/late`).then(d=>d.late_submissions).catch(()=>[]),api('GET',`/api/items/${id}/attempts`).then(d=>d.attempts).catch(()=>[])]);
+$('detail').innerHTML=`<div class="card"><div class="row"><h2 style="margin:0">事故 #${it.id} · ${it.title}</h2><span class="spacer"></span>${priTag(it)}${it.sealed?tag('已封存','mut'):tag('未关闭','accent')}</div>
+<p class="mut" style="margin:.25rem 0">${it.description||''}</p>
+<div class="grid">
+<div class="field"><label>状态</label><div>${it.status}</div></div>
+<div class="field"><label>严重度 / 伤害指数 / 阈值</label><div>${it.severity} / ${it.quantity} / ${it.threshold}</div></div>
+<div class="field"><label>当前持有人</label><div>${it.holder?it.holder+' '+(it.lease_active?tag('有效','ok'):tag('已失效','warn')):tag('无','mut')}</div></div>
+<div class="field"><label>持有凭证到期</label><div class="mono">${it.lease_expires_at||'-'}</div></div>
+<div class="field"><label>检查点</label><div class="mono">#${it.checkpoint_id||'-'}</div></div>
+<div class="field"><label>优先级 / 期限</label><div>${it.priority==null?'-':it.priority} / ${it.deadline_hours==null?'-':it.deadline_hours} h ${it.sealed?'<span class="mut">(封存)</span>':''}</div></div>
+</div>
+<details><summary>续办操作</summary>
+<div class="grid" style="margin-top:.5rem">
+<div class="field"><label>持有凭证 lease_token</label><input id="f_token" placeholder="领取后获得"></div>
+<div class="field"><label>检查点备注 note</label><input id="f_note"></div>
+</div>
+<div class="bar" style="margin-top:.5rem">
+<button onclick="doClaim(${id})">领取续办</button>
+<button onclick="doCheckpoint(${id})">记录检查点</button>
+<button class="danger" onclick="doRelease(${id})">释放凭证</button>
+</div>
+<h2>提交续办（现场记录 / 措施）</h2>
+<div class="grid">
+<div class="field"><label>kind</label><input id="f_kind" value="evidence"></div>
+<div class="field"><label>status</label><select id="f_status"><option value="open">open</option><option value="closed">closed</option></select></div>
+<div class="field"><label>幂等键 client_key / idempotency_key</label><input id="f_key" placeholder="重试时保持不变"></div>
+<div class="field"><label>期望版本 expected_version</label><input id="f_ver" type="number" value="${it.version}"></div>
+</div>
+<div class="field" style="margin-top:.5rem"><label>detail</label><textarea id="f_detail"></textarea></div>
+<div class="bar" style="margin-top:.5rem"><button class="primary" onclick="doFollowup(${id})">提交续办</button></div>
+<h2>严重度 / 伤害指数改动（立即重算）</h2>
+<div class="grid">
+<div class="field"><label>新严重度（留空不改）</label><select id="u_sev"><option value="">（不变）</option><option value="minor">minor</option><option value="moderate">moderate</option><option value="serious">serious</option><option value="fatal">fatal</option></select></div>
+<div class="field"><label>新伤害指数（留空不改）</label><input id="u_q" type="number"></div>
+<div class="field"><label>新阈值（留空不改）</label><input id="u_t" type="number"></div>
+<div class="field"><label>期望版本</label><input id="u_ver" type="number" value="${it.version}"></div>
+</div>
+<div class="bar" style="margin-top:.5rem"><button onclick="doUpdate(${id})">重算期限与优先级</button></div>
+</details>
+<h2>措施 / 记录 (${recs.length})</h2>
+${recs.length?`<table><thead><tr><th>ID</th><th>kind</th><th>detail</th><th>status</th><th>提交人</th><th>外部编号</th></tr></thead><tbody>${recs.map(r=>`<tr><td class="mono">${r.id}</td><td>${r.kind}</td><td>${r.detail}</td><td>${r.status=='open'?tag('open','warn'):tag('closed','ok')}</td><td>${r.created_by}</td><td class="mono">${r.external_ref||''}</td></tr>`).join('')}</tbody></table>`:'<p class="mut">暂无记录。</p>'}
+<h2>检查点 (${cps.length})</h2>
+${cps.length?`<table><thead><tr><th>seq</th><th>类型</th><th>持有人</th><th>备注</th><th>版本</th><th>时间</th></tr></thead><tbody>${cps.map(c=>`<tr><td>${c.seq}</td><td>${c.kind==='handover'?tag('handover','accent'):c.kind==='claim'?tag('claim','ok'):tag('progress','mut')}</td><td>${c.holder}</td><td>${c.payload.note||''}</td><td class="mono">v${c.payload.version}</td><td class="mono">${c.created_at}</td></tr>`).join('')}</tbody></table>`:'<p class="mut">暂无检查点。</p>'}
+<h2>持有凭证历史 (${leases.length})</h2>
+${leases.length?`<table><thead><tr><th>ID</th><th>持有人</th><th>状态</th><th>到期</th><th>交接自</th></tr></thead><tbody>${leases.map(l=>`<tr><td class="mono">${l.id}</td><td>${l.holder}</td><td>${l.status==='active'?tag('有效','ok'):l.status==='taken_over'?tag('已交接','accent'):l.status==='expired'?tag('已过期','warn'):tag('已释放','mut')}</td><td class="mono">${l.expires_at}</td><td class="mono">${cps.find(c=>c.lease_token===l.token&&c.kind==='handover')?.payload.from_holder||''}</td></tr>`).join('')}</tbody></table>`:'<p class="mut">暂无持有记录。</p>'}
+<h2>迟到提交历史 (${late.length})</h2>
+${late.length?`<table><thead><tr><th>ID</th><th>提交人</th><th>原因</th><th>kind</th><th>detail</th><th>时间</th></tr></thead><tbody>${late.map(l=>`<tr><td class="mono">${l.id}</td><td>${l.holder||''}</td><td>${tag(l.reason,'err')}</td><td>${l.kind}</td><td>${l.detail}</td><td class="mono">${l.created_at}</td></tr>`).join('')}</tbody></table>`:'<p class="mut">暂无迟到提交。</p>'}
+<h2>续办尝试与重试 (${attempts.length})</h2>
+${attempts.length?`<table><thead><tr><th>ID</th><th>幂等键</th><th>状态</th><th>措施ID</th><th>失败原因</th><th>操作</th></tr></thead><tbody>${attempts.map(a=>`<tr><td class="mono">${a.id}</td><td class="mono">${a.idempotency_key}</td><td>${a.status==='succeeded'?tag('成功','ok'):a.status==='failed'?tag('失败','err'):tag('已隔离','warn')}</td><td class="mono">${a.record_id||''}</td><td>${a.failure_reason?tag(a.failure_reason,'err'):''}</td><td>${a.status==='failed'?`<button onclick="doRetry(${id},'${a.idempotency_key}')">重试</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<p class="mut">暂无续办尝试。</p>'}
+</div>`;
+}catch(e){toast('加载详情失败：'+e.message)}
+async function doClaim(id){try{const r=await api('POST',`/api/items/${id}/claim`,{note:$('f_note').value||undefined});$('f_token').value=r.lease.token;toast((r.handover?'已交接给下一人':'已领取')+'，凭证已填入');openDetail(id);}catch(e){toast('领取失败：'+e.message)}}
+async function doCheckpoint(id){try{await api('POST',`/api/items/${id}/checkpoint`,{lease_token:$('f_token').value,note:$('f_note').value||undefined});toast('检查点已记录');openDetail(id);}catch(e){toast('检查点失败：'+e.message)}}
+async function doRelease(id){try{await api('POST',`/api/items/${id}/release`,{lease_token:$('f_token').value});toast('凭证已释放');openDetail(id);}catch(e){toast('释放失败：'+e.message)}}
+async function doFollowup(id){try{const body={lease_token:$('f_token').value,kind:$('f_kind').value,detail:$('f_detail').value,status:$('f_status').value,client_key:$('f_key').value||undefined,expected_version:Number($('f_ver').value)};const r=await api('POST',`/api/items/${id}/followup`,body);if(r.applied){toast((r.idempotent?'幂等重放，未重复生成措施':'续办已提交')+'，措施 #'+(r.record?r.record.id:'?'))}else{toast('续办未生效：'+(r.reason||r.failure_reason))}openDetail(id);}catch(e){toast('续办失败：'+e.message)}}
+async function doRetry(id,key){try{const r=await api('POST',`/api/items/${id}/followup/retry`,{idempotency_key:key,lease_token:$('f_token').value,expected_version:Number($('f_ver').value)});if(r.applied){toast('重试成功，措施 #'+(r.record?r.record.id:'?'))}else{toast('重试未生效：'+(r.reason||r.failure_reason))}openDetail(id);}catch(e){toast('重试失败：'+e.message)}}
+async function doUpdate(id){try{const body={expected_version:Number($('u_ver').value)};if($('u_sev').value)body.severity=$('u_sev').value;if($('u_q').value)body.quantity=Number($('u_q').value);if($('u_t').value)body.threshold=Number($('u_t').value);const r=await api('POST',`/api/items/${id}/update`,body);toast('已重算：优先级 '+r.priority+'，期限 '+r.deadline_hours+'h');openDetail(id);}catch(e){toast('重算失败：'+e.message)}}
+loadItems();
+</script></body></html>

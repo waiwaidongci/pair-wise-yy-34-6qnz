@@ -89,6 +89,26 @@ def make_handler(service: Service, static_dir: str):
                     actor, role = self._identity()
                     del actor
                     self._json(200, {"records": service.list_records(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/checkpoints"):
+                    item_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"checkpoints": service.list_checkpoints(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/leases"):
+                    item_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"leases": service.list_leases(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/late"):
+                    item_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"late_submissions": service.list_late_submissions(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/attempts"):
+                    item_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"attempts": service.list_attempts(item_id, role)})
                 elif path.startswith("/api/items/"):
                     item_id = int(path.rsplit("/", 1)[-1])
                     actor, role = self._identity()
@@ -110,6 +130,24 @@ def make_handler(service: Service, static_dir: str):
                 body = self._body()
                 if path == "/api/items":
                     self._json(201, service.create_item(body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/followup/retry"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.retry_followup(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/followup"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.followup(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/claim"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.claim(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/checkpoint"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.checkpoint(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/release"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.release(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/update"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.update_item(item_id, body, actor, role))
                 elif path.startswith("/api/items/") and path.endswith("/records"):
                     item_id = int(path.split("/")[3])
                     self._json(201, service.add_record(item_id, body, actor, role))
