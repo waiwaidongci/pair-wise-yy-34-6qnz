@@ -1,1 +1,217 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工伤事故调查与纠正措施</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#17212b}pre{background:#f4f7f9;padding:1rem;overflow:auto}button{padding:.55rem 1rem}</style></head><body><h1>工伤事故调查与纠正措施</h1><p>记录工伤经过、伤害、现场和证人，维护调查、纠正措施、验证与关闭流程</p><p>严重度越高、伤害指数越大或未关闭措施越多，优先级越高；严重事故必须在4小时内启动调查。</p><button onclick="loadItems()">刷新列表</button><pre id="out">使用X-Actor和X-Role请求头调用接口。</pre><script>async function loadItems(){const r=await fetch('/api/items',{headers:{'X-Actor':'demo','X-Role':'viewer'}});document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2)}</script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工伤事故调查 · 可恢复续办</title>
+<style>
+  :root{--bd:#d6dee6;--bg:#f4f7f9;--ok:#1a7f37;--warn:#b3541e;--err:#b42318;--info:#1f5fb2}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:1080px;margin:1.5rem auto;padding:0 1rem;color:#17212b;line-height:1.5}
+  h1{font-size:1.35rem;margin-bottom:.25rem}
+  h2{font-size:1.05rem;margin:1.4rem 0 .5rem}
+  .muted{color:#5b6b7b;font-size:.88rem}
+  .panel{border:1px solid var(--bd);border-radius:8px;padding:.9rem;margin:.6rem 0;background:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem}
+  label{font-size:.82rem;color:#3d4d5c;display:block;margin:.35rem 0 .15rem}
+  input,select,textarea{width:100%;padding:.42rem .5rem;border:1px solid var(--bd);border-radius:5px;font:inherit}
+  textarea{min-height:56px}
+  button{padding:.45rem .85rem;border:1px solid #2a5a8f;background:#2a5a8f;color:#fff;border-radius:5px;cursor:pointer;font-size:.88rem;margin:.35rem .35rem 0 0}
+  button.ghost{background:#fff;color:#2a5a8f}
+  button.danger{background:#8f2a2a;border-color:#8f2a2a}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{border-bottom:1px solid var(--bd);padding:.4rem .45rem;text-align:left;vertical-align:top}
+  th{background:var(--bg)}
+  .badge{display:inline-block;padding:.1rem .45rem;border-radius:10px;font-size:.75rem;color:#fff}
+  .b-open{background:#7a8794}.b-hold{background:var(--info)}.b-sealed{background:#444c56}
+  .b-ok{background:var(--ok)}.b-warn{background:var(--warn)}.b-err{background:var(--err)}
+  #out{background:#0d1b2a;color:#d7e3f4;padding:.8rem;border-radius:6px;font-size:.8rem;max-height:340px;overflow:auto;white-space:pre-wrap}
+  .kv{font-size:.85rem}.kv b{color:#0d1b2a}
+  .row-actions{margin-top:.5rem}
+  details summary{cursor:pointer;font-weight:600;font-size:.9rem}
+  .reason{color:var(--err);font-weight:600}
+</style>
+</head>
+<body>
+<h1>工伤事故调查与纠正措施 · 可恢复续办</h1>
+<p class="muted">领取时发放短期持有凭证并记下检查点；超时后从最近检查点交给下一人；旧持有人的迟到提交只留历史，不覆盖当前续办、不重复生成措施；失败批次可用原批次号重试。严重度/伤害指数改动立即重算未关闭事故的期限和优先级，关闭即封存原结果。</p>
+
+<div class="panel">
+  <div class="grid">
+    <div><label>身份 X-Actor</label><input id="actor" value="inv-a"></div>
+    <div><label>角色 X-Role</label>
+      <select id="role">
+        <option value="investigator">investigator</option>
+        <option value="safety_manager">safety_manager</option>
+        <option value="reporter">reporter</option>
+        <option value="viewer">viewer</option>
+      </select>
+    </div>
+    <div><label>租约TTL(秒)</label><input id="ttl" type="number" value="600" min="1"></div>
+    <div style="display:flex;align-items:flex-end">
+      <button class="ghost" onclick="loadItems()">刷新事故列表</button>
+      <button class="ghost" onclick="loadAudit()">查看审计链</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <details><summary>＋ 新建事故</summary>
+    <div class="grid">
+      <div><label>标题</label><input id="f_title" value="车间机械伤害"></div>
+      <div><label>严重度</label><select id="f_severity">
+        <option>minor</option><option selected>moderate</option>
+        <option>serious</option><option>fatal</option></select></div>
+      <div><label>伤害指数 quantity</label><input id="f_qty" type="number" value="6"></div>
+      <div><label>阈值 threshold</label><input id="f_thr" type="number" value="10"></div>
+      <div><label>external_ref</label><input id="f_ref" value=""></div>
+    </div>
+    <label>描述</label><textarea id="f_desc">事故经过简述</textarea>
+    <button onclick="createItem()">创建事故</button>
+  </details>
+</div>
+
+<div class="panel">
+  <h2 style="margin-top:0">事故列表（含当前持有人 / 封存状态 / 实时优先级）</h2>
+  <table>
+    <thead><tr><th>ID</th><th>标题</th><th>状态</th><th>严重度</th><th>优先级</th>
+      <th>期限(小时)</th><th>当前持有人</th><th>封存</th><th></th></tr></thead>
+    <tbody id="items"><tr><td colspan="9" class="muted">点击“刷新事故列表”加载。</td></tr></tbody>
+  </table>
+</div>
+
+<div class="panel" id="detailPanel" style="display:none">
+  <h2 style="margin-top:0">续办工作台 <span id="d_id" class="muted"></span></h2>
+  <div class="kv" id="d_meta"></div>
+  <div class="row-actions">
+    <button onclick="claim()">领取/从最近检查点续查</button>
+    <button class="ghost" onclick="release()">主动释放凭证</button>
+    <button class="ghost" onclick="loadDetail()">刷新详情</button>
+  </div>
+  <label>我的持有凭证 token（领取后保存，掉线靠它识别身份）</label>
+  <input id="d_token" placeholder="领取后自动填入；也可粘贴旧凭证复现迟到提交">
+  <div class="grid">
+    <div><label>批次号 batch_ref（幂等/重试依据）</label><input id="d_batch" value="B-001"></div>
+    <div><label>措施 kind</label><input id="d_kind" value="corrective_action"></div>
+    <div><label>措施状态</label><select id="d_mstatus"><option value="open">open</option><option value="closed">closed</option></select></div>
+    <div><label>external_ref（留空可模拟无标识；重复可模拟失败）</label><input id="d_mref" value="M-001"></div>
+  </div>
+  <label>现场记录/措施内容 detail</label><textarea id="d_detail">已断电挂牌，等待设备复检</textarea>
+  <div class="row-actions">
+    <button onclick="continueInvest(false)">提交续办</button>
+    <button class="danger" onclick="continueInvest(true)">模拟失败（重复external_ref）后重试</button>
+    <button class="ghost" onclick="retry()">用当前batch_ref重试</button>
+  </div>
+  <div class="grid" style="margin-top:.6rem">
+    <div><label>PATCH 严重度</label><select id="d_sev"><option>minor</option><option>moderate</option><option selected>serious</option><option>fatal</option></select></div>
+    <div><label>PATCH 伤害指数</label><input id="d_qty" type="number" value="6"></div>
+    <div style="display:flex;align-items:flex-end"><button class="ghost" onclick="changeSeverity()">重算期限/优先级</button></div>
+  </div>
+  <h2>检查点 / 交接 / 尝试 / 迟到历史</h2>
+  <div id="d_continuation" class="muted"></div>
+</div>
+
+<h2>接口响应</h2>
+<pre id="out">就绪。</pre>
+
+<script>
+let CURRENT=null;
+const $=id=>document.getElementById(id);
+async function api(method, path, body){
+  const opt={method,headers:{'X-Actor':$('actor').value,'X-Role':$('role').value,'Content-Type':'application/json'}};
+  if(body!==undefined) opt.body=JSON.stringify(body);
+  const r=await fetch(path,opt); let j;
+  try{j=await r.json()}catch(e){j={raw:'(no json)'}}
+  print(`${method} ${path} -> ${r.status}`, j);
+  return {status:r.status, body:j};
+}
+function print(title, obj){
+  $('out').textContent=`### ${title}\n`+JSON.stringify(obj,null,2)+'\n\n'+$('out').textContent;
+}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+async function loadItems(){
+  const {body}=await api('GET','/api/items');
+  const rows=(body.items||[]).map(it=>`<tr>
+    <td>${it.id}</td><td>${esc(it.title)}</td>
+    <td><span class="badge b-open">${it.status}</span></td>
+    <td>${it.severity}</td><td><b>${it.priority}</b></td><td>${it.deadline_hours}</td>
+    <td>${it.current_holder?`<span class="badge b-hold">${esc(it.current_holder)}</span> <span class="muted">至${esc(it.lease_expires_at)}</span>`:'<span class="muted">无人持有</span>'}</td>
+    <td>${it.sealed?'<span class="badge b-sealed">已封存</span>':'否'}</td>
+    <td><button class="ghost" onclick="openItem(${it.id})">打开</button></td></tr>`).join('');
+  $('items').innerHTML=rows||'<tr><td colspan="9" class="muted">暂无事故</td></tr>';
+}
+async function openItem(id){
+  const {body}=await api('GET',`/api/items/${id}`);
+  CURRENT=body; $('detailPanel').style.display='block';
+  $('d_id').textContent='#'+id;
+  $('d_sev').value=body.severity; $('d_qty').value=body.quantity;
+  renderDetail();
+}
+function renderDetail(){
+  const it=CURRENT; if(!it) return;
+  const c=it.continuation||{};
+  const holder=c.current_holder?`<span class="badge b-hold">${esc(c.current_holder)}</span> 到期 ${esc(c.lease_expires_at)}`:'<span class="muted">无人持有（可领取）</span>';
+  $('d_meta').innerHTML=`状态 <b>${it.status}</b> ｜ 严重度 <b>${it.severity}</b> ｜ 伤害指数 <b>${it.quantity}</b> ｜
+    优先级 <b>${it.priority}</b> ｜ 期限 <b>${it.deadline_hours}h</b> ｜ 版本 <b>${it.version}</b> ｜
+    封存 ${it.sealed?'<span class="badge b-sealed">是（保留原结果）</span>':'否'}<br>
+    当前持有人：${holder}<br>
+    最近失效原因：${c.last_invalidation?`<span class="reason">${esc(c.last_invalidation.reason)}</span> — ${esc(c.last_invalidation.detail)}（${esc(c.last_invalidation.created_at)}）`:'<span class="muted">无</span>'}<br>
+    最近重试结果：<b>${esc(c.last_retry_result??'无')}</b>`;
+  const cps=(c.latest_checkpoint?[c.latest_checkpoint]:[]).map(cp=>`<tr><td>cp#${cp.seq}</td><td>${esc(cp.summary)}</td><td>${cp.open_record_count}</td><td>${esc(cp.created_by)}</td></tr>`).join('');
+  const ho=(c.handoffs||[]).map(h=>`<tr><td>${h.id}</td><td>${esc(h.reason)}</td><td>${esc(h.detail)}</td><td>${esc(h.created_by)}@${esc(h.created_at)}</td></tr>`).join('');
+  const at=(c.attempts||[]).map(a=>`<tr><td>${esc(a.batch_ref)}</td><td><span class="badge ${a.result==='succeeded'?'b-ok':'b-err'}">${a.result}</span></td><td>${esc(a.message)}</td><td>${a.retriable?'可重试':'不可'}</td></tr>`).join('');
+  const st=(c.stale_submissions||[]).map(s=>`<tr><td>${s.id}</td><td>${esc(s.batch_ref)}</td><td class="reason">${esc(s.reason)}</td><td>${esc(s.submitted_by)}@${esc(s.submitted_at)}</td></tr>`).join('');
+  $('d_continuation').innerHTML=`
+    <div class="muted">最近检查点：${c.latest_checkpoint?`cp#${c.latest_checkpoint.seq} ${esc(c.latest_checkpoint.summary)}`:'无（首次领取时创建）'}</div>
+    <table><thead><tr><th>交接</th><th>原因</th><th>说明</th><th>时间</th></tr></thead><tbody>${ho||'<tr><td colspan=4>无</td></tr>'}</tbody></table>
+    <table style="margin-top:.5rem"><thead><tr><th>批次</th><th>结果</th><th>信息</th><th>重试</th></tr></thead><tbody>${at||'<tr><td colspan=4>无</td></tr>'}</tbody></table>
+    <table style="margin-top:.5rem"><thead><tr><th>#</th><th>批次</th><th>失效原因（仅历史）</th><th>提交时间</th></tr></thead><tbody>${st||'<tr><td colspan=4>无迟到提交</td></tr>'}</tbody></table>`;
+}
+async function createItem(){
+  await api('POST','/api/items',{title:$('f_title').value,description:$('f_desc').value,
+    severity:$('f_sev').value,quantity:Number($('f_qty').value),threshold:Number($('f_thr').value),
+    external_ref:$('f_ref').value||null});
+  loadItems();
+}
+async function claim(){
+  const {status,body}=await api('POST',`/api/items/${CURRENT.id}/claim`,{ttl_seconds:Number($('ttl').value)});
+  if(status===201){$('d_token').value=body.token; await loadDetail();}
+}
+async function release(){
+  await api('POST',`/api/items/${CURRENT.id}/release`,{token:$('d_token').value});
+  loadDetail();
+}
+function recordsPayload(extra){
+  return [{kind:$('d_kind').value,detail:$('d_detail').value,status:$('d_mstatus').value,
+    external_ref:$('d_mref').value||null, ...(extra||{})}];
+}
+async function continueInvest(forceFail){
+  let records=recordsPayload();
+  if(forceFail) records=recordsPayload({external_ref:'FORCE-DUP'});
+  const {status,body}=await api('POST',`/api/items/${CURRENT.id}/continue`,
+    {token:$('d_token').value,batch_ref:$('d_batch').value,records});
+  if(forceFail && (status===409)){
+    print('续办失败，2秒后用原batch_ref重试（更换external_ref）', body);
+    setTimeout(retry, 200);
+  }
+  loadDetail();
+}
+async function retry(){
+  const {body}=await api('POST',`/api/items/${CURRENT.id}/retry`,
+    {token:$('d_token').value,batch_ref:$('d_batch').value,records:recordsPayload()});
+  print('重试结果 retry_result='+body.retry_result, body);
+  loadDetail();
+}
+async function changeSeverity(){
+  await api('PATCH',`/api/items/${CURRENT.id}`,
+    {severity:$('d_sev').value,quantity:Number($('d_qty').value),expected_version:CURRENT.version});
+  loadDetail(); loadItems();
+}
+async function loadDetail(){ await openItem(CURRENT.id); }
+async function loadAudit(){ const {body}=await api('GET','/api/audit'); print('AUDIT', body); }
+loadItems();
+</script>
+</body>
+</html>

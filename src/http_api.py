@@ -71,7 +71,11 @@ def make_handler(service: Service, static_dir: str):
                 status = 400
             else:
                 status = 500
-            self._json(status, {"error": exc.__class__.__name__, "message": str(exc)})
+            payload = {"error": exc.__class__.__name__, "message": str(exc)}
+            details = getattr(exc, "details", None)
+            if details:
+                payload["details"] = details
+            self._json(status, payload)
 
         def do_GET(self) -> None:
             try:
@@ -89,6 +93,11 @@ def make_handler(service: Service, static_dir: str):
                     actor, role = self._identity()
                     del actor
                     self._json(200, {"records": service.list_records(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/continuation"):
+                    item_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, service.get_item(item_id, role))
                 elif path.startswith("/api/items/"):
                     item_id = int(path.rsplit("/", 1)[-1])
                     actor, role = self._identity()
@@ -98,6 +107,19 @@ def make_handler(service: Service, static_dir: str):
                     actor, role = self._identity()
                     del actor
                     self._json(200, {"events": service.audit(role)})
+                else:
+                    self._json(404, {"error": "not_found"})
+            except Exception as exc:
+                self._send_error(exc)
+
+        def do_PATCH(self) -> None:
+            try:
+                path = urlparse(self.path).path
+                actor, role = self._identity()
+                body = self._body()
+                if path.startswith("/api/items/") and len(path.strip("/").split("/")) == 3:
+                    item_id = int(path.rsplit("/", 1)[-1])
+                    self._json(200, service.change_severity(item_id, body, actor, role))
                 else:
                     self._json(404, {"error": "not_found"})
             except Exception as exc:
@@ -119,6 +141,20 @@ def make_handler(service: Service, static_dir: str):
                     expected = body.get("expected_version")
                     self._json(200, service.transition(
                         item_id, target, expected, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/claim"):
+                    item_id = int(path.split("/")[3])
+                    self._json(201, service.claim(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/release"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.release(item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/continue"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.continue_investigation(
+                        item_id, body, actor, role))
+                elif path.startswith("/api/items/") and path.endswith("/retry"):
+                    item_id = int(path.split("/")[3])
+                    self._json(200, service.retry_continuation(
+                        item_id, body, actor, role))
                 else:
                     self._json(404, {"error": "not_found"})
             except Exception as exc:

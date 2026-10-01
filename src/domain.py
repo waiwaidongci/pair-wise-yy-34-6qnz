@@ -5,7 +5,8 @@ class ErrorKind:
     VALIDATION="validation"; NOT_FOUND="not_found"; FORBIDDEN="forbidden"; CONFLICT="conflict"
 class DomainError(Exception):
     kind=ErrorKind.VALIDATION
-    def __init__(self,message): super().__init__(message); self.message=message
+    def __init__(self,message,details=None):
+        super().__init__(message); self.message=message; self.details=details or {}
 class ValidationError(DomainError): kind=ErrorKind.VALIDATION
 class NotFoundError(DomainError): kind=ErrorKind.NOT_FOUND
 class PermissionDenied(DomainError): kind=ErrorKind.FORBIDDEN
